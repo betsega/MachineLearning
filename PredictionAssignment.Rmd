@@ -1,0 +1,165 @@
+---
+title: 'Prediction assignment: Write up'
+author: "Betsega"
+date: "November 2, 2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+## Summary
+This progject aims at predicting the manner in which participants did a weight lifting excercise. A machine learing approach is applied
+to build different models and model selction was done to get the best predictive approach
+
+```{r setup, include=TRUE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+
+## Loading required libraries
+
+```{r, echo=TRUE}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+library(lattice)
+
+library(ggplot2)
+
+library(caret)
+
+library(rpart) 
+
+library(rpart.plot)
+
+library(rattle)
+
+library(randomForest)
+
+library(RColorBrewer)
+
+```
+##loading data
+```{r, echo=TRUE}
+
+
+url_train <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+
+url_quiz  <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+data_train <- read.csv(url(url_train), strip.white = TRUE, na.strings = c("NA",""))
+
+data_quiz  <- read.csv(url(url_quiz),  strip.white = TRUE, na.strings = c("NA",""))
+
+
+dim(data_train)
+
+dim(data_quiz)
+
+
+```
+### partition data into training and testing sets
+```{r, echo=TRUE}
+in_train  <- createDataPartition(data_train$classe, p=0.75, list=FALSE)
+train_set <- data_train[ in_train, ]
+test_set  <- data_train[-in_train, ]
+
+dim(train_set)
+
+dim(test_set)
+
+```
+
+## Remove the variables zeros
+
+```{r, echo=TRUE}
+nzv_var <- nearZeroVar(train_set)
+
+train_set <- train_set[ , -nzv_var]
+
+test_set  <- test_set [ , -nzv_var]
+
+
+```
+## Remove variables that are mostly NA. A threshlod of 95 % is selected.
+```{r, echo=TRUE}
+na_var <- sapply(train_set, function(x) mean(is.na(x))) > 0.95
+
+train_set <- train_set[ , na_var == FALSE]
+
+test_set  <- test_set [ , na_var == FALSE]
+
+```
+
+## Remove columns 1 to 5 since they are only identification varaibles
+
+
+```{r, echo=TRUE}
+
+train_set <- train_set[ , -(1:5)]
+
+test_set  <- test_set [ , -(1:5)]
+
+
+```
+#Building Predictive Models
+
+## 1 A decision tree model
+
+
+```{r, echo=TRUE}
+
+set.seed(2000)
+
+fit_decision_tree <- rpart(classe ~ ., data = train_set, method="class")
+
+fancyRpartPlot(fit_decision_tree)
+
+```
+### apply the decsion tree model to predict with the test data set
+
+```{r, echo=TRUE}
+predict_decision_tree <- predict(fit_decision_tree, newdata = test_set, type="class")
+
+conf_matrix_decision_tree <- confusionMatrix(predict_decision_tree, test_set$classe)
+
+conf_matrix_decision_tree
+
+```
+
+##2. Random Forest Model
+```{r, echo=TRUE}
+set.seed(2000)
+ctrl_RF <- trainControl(method = "repeatedcv", number = 5, repeats = 2)
+fit_RF  <- train(classe ~ ., data = train_set, method = "rf",
+                 trControl = ctrl_RF, verbose = FALSE)
+                 
+fit_RF$finalModel
+
+```
+### Apply the randomForest model to predct with the test data set
+```{r, echo=TRUE}
+predict_RF <- predict(fit_RF, newdata = test_set)
+conf_matrix_RF <- confusionMatrix(predict_RF, test_set$classe)
+conf_matrix_RF
+
+```
+## Selecting the best model
+
+ The predictive accuracy of the ttwo models evaluated is as follows:
+  
+   Decision Tree Model: 74.90 %
+
+   Random Forest Model: 99.80 %
+
+   Random Forest model is best 
+
+## applying the selected model to predict the 20 data points (data_quize set)
+```{r, echo=TRUE}
+predict_quiz <- predict(fit_RF, newdata = data_quiz)
+predict_quiz
+
+```
+
